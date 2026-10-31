@@ -1,178 +1,205 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { registerUser } from '../../services/authService.js'
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link } from 'react-router-dom';
+import { authService } from '../../services/authService';
 
-const EMAIL_PATTERN = /^((?!\.)[\w\-_.]*[^.])(@\w+)(\.\w+(\.\w+)?[^.\W])$/
-const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])\S{7,}$/
-const inputClassName =
-  'mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
+const RegistrationForm = () => {
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-function getServerError(error) {
-  const data = error.response?.data
-
-  if (typeof data === 'string') return data
-  if (data?.message) return data.message
-
-  if (Array.isArray(data?.errors) && data.errors.length > 0) {
-    return data.errors.map((item) => item.defaultMessage || item.message).join(' ')
-  }
-
-  if (error.response?.status === 409) {
-    return 'An account with this email or phone number already exists.'
-  }
-
-  return error.code === 'ERR_NETWORK'
-    ? 'Unable to reach the server. Please confirm that the backend is running.'
-    : 'Registration failed. Please try again.'
-}
-
-function RegistrationForm() {
-  const [formMessage, setFormMessage] = useState(null)
   const {
     register,
     handleSubmit,
-    reset,
-    getValues,
-    formState: { errors, isSubmitting },
+    formState: { errors },
+    reset
   } = useForm({
     defaultValues: {
       fullName: '',
       phoneNumber: '',
       email: '',
       password: '',
-      confirmPassword: '',
+      confirmPassword: ''
     },
-  })
+    mode: 'onSubmit'
+  });
 
-  async function onSubmit(values) {
-    setFormMessage(null)
+  const onSubmit = async (data) => {
+    console.log('Form data:', data);
+    setLoading(true);
+    setServerError('');
 
+    
     try {
-      const user = await registerUser(values)
-      reset()
-      setFormMessage({
-        type: 'success',
-        text: `Registration successful for ${user.fullName || values.fullName}.`,
-      })
+     
+      await authService.register(data);
+      setSuccess(true);
+      reset();
     } catch (error) {
-      setFormMessage({ type: 'error', text: getServerError(error) })
+      if (error.response?.data) {
+        setServerError(error.response.data.message || 'Registration failed');
+      } else {
+        setServerError('An error occurred during registration');
+      }
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  function fieldError(name) {
-    return errors[name] ? (
-      <p className="mt-1.5 text-sm text-red-600" role="alert">
-        {errors[name].message}
-      </p>
-    ) : null
+  if (success) {
+    return (
+      <div className="max-w-md mx-auto mt-10 p-6 bg-green-50 border border-green-200 rounded-lg">
+        <h2 className="text-2xl font-bold text-green-800 mb-4">Registration Successful!</h2>
+        <p className="text-green-700 mb-4">Your account has been created successfully.</p>
+        <Link to="/login" className="text-green-700 hover:text-green-800 font-medium underline">
+          Go to Login
+        </Link>
+      </div>
+    );
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      {formMessage && (
-        <div
-          className={`mb-6 rounded-lg border px-4 py-3 text-sm ${
-            formMessage.type === 'success'
-              ? 'border-green-200 bg-green-50 text-green-800'
-              : 'border-red-200 bg-red-50 text-red-800'
-          }`}
-          role={formMessage.type === 'error' ? 'alert' : 'status'}
-        >
-          {formMessage.text}
+    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Register</h2>
+      
+      {serverError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
+          {serverError}
         </div>
       )}
 
-      <div className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label htmlFor="fullName" className="text-sm font-medium text-slate-700">Full name</label>
+          <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+            Full Name *
+          </label>
           <input
-            id="fullName"
             type="text"
-            className={inputClassName}
-            placeholder="Enter your full name"
+            id="fullName"
             {...register('fullName', {
-              required: 'Full name is required.',
-              minLength: { value: 2, message: 'Full name must be at least 2 characters.' },
-              maxLength: { value: 25, message: 'Full name must be 25 characters or fewer.' },
+              required: 'Full name is required',
+              minLength: { value: 2, message: 'Full name must be at least 2 characters' },
+              maxLength: { value: 25, message: 'Full name must not exceed 25 characters' }
             })}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.fullName ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="Enter your full name"
           />
-          {fieldError('fullName')}
+          {errors.fullName && <p className="mt-1 text-sm text-red-600">{errors.fullName.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="phoneNumber" className="text-sm font-medium text-slate-700">Phone number</label>
+          <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+            Phone Number *
+          </label>
           <input
-            id="phoneNumber"
             type="tel"
-            className={inputClassName}
-            placeholder="Enter your phone number"
+            id="phoneNumber"
             {...register('phoneNumber', {
-              required: 'Phone number is required.',
-              setValueAs: (value) => value.trim(),
+              required: 'Phone number is required'
             })}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.phoneNumber ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="Enter your phone number"
           />
-          {fieldError('phoneNumber')}
+          {errors.phoneNumber && <p className="mt-1 text-sm text-red-600">{errors.phoneNumber.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="email" className="text-sm font-medium text-slate-700">Email address</label>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
           <input
-            id="email"
             type="email"
-            className={inputClassName}
-            placeholder="you@example.com"
+            id="email"
             {...register('email', {
-              required: 'Email is required.',
-              pattern: { value: EMAIL_PATTERN, message: 'Enter a valid email address.' },
-            })}
-          />
-          {fieldError('email')}
-        </div>
-
-        <div>
-          <label htmlFor="password" className="text-sm font-medium text-slate-700">Password</label>
-          <input
-            id="password"
-            type="password"
-            className={inputClassName}
-            placeholder="Create a password"
-            {...register('password', {
-              required: 'Password is required.',
               pattern: {
-                value: PASSWORD_PATTERN,
-                message: 'Password needs at least 7 characters, uppercase, lowercase, and a number.',
-              },
+                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                message: 'Invalid email format'
+              }
             })}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.email ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="Enter your email (optional)"
           />
-          {fieldError('password')}
+          {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">Confirm password</label>
-          <input
-            id="confirmPassword"
-            type="password"
-            className={inputClassName}
-            placeholder="Re-enter your password"
-            {...register('confirmPassword', {
-              required: 'Please confirm your password.',
-              validate: (value) =>
-                value === getValues('password') || 'Passwords do not match.',
-            })}
-          />
-          {fieldError('confirmPassword')}
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            Password *
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              id="password"
+              {...register('password', {
+                required: 'Password is required',
+                pattern: {
+                  value: /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9]).{6,}$/,
+                  message: 'Password must be at least 6 characters with uppercase, lowercase, and number'
+                }
+              })}
+              className={`w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.password ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Enter your password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
+          {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
+          <p className="mt-1 text-xs text-gray-500">Must be at least 6 characters with uppercase, lowercase, and number</p>
         </div>
-      </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="mt-7 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-      >
-        {isSubmitting ? 'Creating account...' : 'Create account'}
-      </button>
-    </form>
-  )
-}
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+            Confirm Password *
+          </label>
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              id="confirmPassword"
+              {...register('confirmPassword', {
+                required: 'Please confirm your password',
+                validate: (value, formValues) => value === formValues.password || 'Passwords do not match'
+              })}
+              className={`w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Confirm your password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+            >
+              {showConfirmPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
+          {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>}
+        </div>
 
-export default RegistrationForm
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed transition"
+        >
+          {loading ? 'Registering...' : 'Register'}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+export default RegistrationForm;

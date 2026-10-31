@@ -2,6 +2,7 @@ package com.example.backend.services.impl;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.example.backend.dtos.UserRequestDto;
@@ -18,6 +19,9 @@ public class UserServiceImpl implements UserService {
 	
 	@Autowired
 	private ModelMapper modelMapper;
+	
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 
 	@Override
 	public UserResponseDto register(UserRequestDto userRequestDto) {
@@ -26,6 +30,10 @@ public class UserServiceImpl implements UserService {
 		User user = modelMapper.map(userRequestDto, User.class);
 		
 		user.setRole(Role.ROLE_USER);
+		
+		String encodePassword = passwordEncoder.encode(user.getPassword());
+		
+		user.setPassword(encodePassword);
 		
 		User savedUser = userRepository.save(user);
 		

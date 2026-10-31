@@ -2,6 +2,13 @@ package com.example.backend.entities;
 
 
 
+import java.util.ArrayList;
+import java.util.Collection;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
 import com.example.backend.enums.Role;
 
 import jakarta.persistence.*;
@@ -13,7 +20,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-public class User {
+public class User implements UserDetails {
 	@Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -33,6 +40,30 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private Role role = Role.ROLE_USER;
+
+    @Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		ArrayList<GrantedAuthority> roles = new ArrayList<GrantedAuthority>();
+		SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role.toString());
+		roles.add(authority);
+		return roles;
+		
+        //	or 
+		// return List.of(new SimpleGrantedAuthority(role.toString()))
+	}
+
+    @Override
+	public String getUsername() {
+		// TODO Auto-generated method stub
+		return email;
+	}
+	
+	
+	@Override
+	public String getPassword() {
+		// TODO Auto-generated method stub
+		return password;
+	}
  
     /*@Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
